@@ -18,7 +18,7 @@ function MovieGame() {
             setError("");
 
             const response = await fetch(
-                "http://localhost:8080/api/game/start",
+                `${import.meta.env.VITE_API_URL}/api/game/start`,
                 {
                     method: "POST"
                 }
@@ -51,7 +51,7 @@ function MovieGame() {
             setError("");
 
             const response = await fetch(
-                "http://localhost:8080/api/game/guess",
+                `${import.meta.env.VITE_API_URL}/api/game/guess`,
                 {
                     method: "POST",
                     headers: {
@@ -90,7 +90,7 @@ function MovieGame() {
             try {
 
                 const response = await fetch(
-                    "http://localhost:8080/api/game/start",
+                    `${import.meta.env.VITE_API_URL}/api/game/start`,
                     {
                         method: "POST"
                     }

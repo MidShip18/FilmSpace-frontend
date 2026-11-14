@@ -1,207 +1,176 @@
+
 import "../App.css";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import ContentCard from "../components/ContentCard.jsx";
-import SearchBar from "../components/SearchBar.jsx";
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+
 function Home() {
-    const appName = "FilmSpace";
-    const [searchText, setSearchText] = useState("");
+    const location = useLocation();
+
     const [movies, setMovies] = useState([]);
     const [series, setSeries] = useState([]);
-    const [searchResults, setSearchResults] = useState([]);
-    const [sectionTitle, setSectionTitle] = useState("Trending");
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [noResults, setNoResults] = useState(false);
 
-    const loadTrendingContent = async () => {
+    // Search results are passed from the shared Navbar.
+    const searchResults = location.state?.searchResults;
+    const searchText = location.state?.searchText || "";
+    const isSearchPage = Array.isArray(searchResults);
+    const hasSearchResults = isSearchPage && searchResults.length > 0;
 
-        setLoading(true);
-        setError("");
-        setSearchText("");
-
-        try {
-
-            const movieResponse = await fetch(
-                "http://localhost:8080/api/movies/trending"
-            );
-            const seriesResponse = await fetch(
-                "http://localhost:8080/api/tv/trending");
-
-            const movieData = await movieResponse.json();
-            const seriesData = await seriesResponse.json();
-
-            setMovies(movieData.results);
-            setSeries(seriesData.results);
-            setSectionTitle("Trending");
-            setNoResults(false);
-
-        } catch (error) {
-
-            console.log(error);
-            setError("Unable to load");
-
-        } finally {
-
-            setLoading(false);
-        }
-    };
-    const handleSearch = async () => {
-        console.log("Search Button Clicked");
-        if(!searchText.trim()){
-            return;
-        }
-        setLoading(true);
-        setError("");
-        setNoResults(false);
-        try {
-            const movieResponse = await fetch(
-                `http://localhost:8080/api/movies/search?query=${encodeURIComponent(searchText)}`
-            );
-            const seriesResponse = await fetch(
-                `http://localhost:8080/api/series/search?query=${encodeURIComponent(searchText)}`
-            );
-            if (!movieResponse.ok || !seriesResponse.ok) {
-                throw new Error("Search failed");
-            }
-            const movieData = await movieResponse.json();
-            const seriesData = await seriesResponse.json();
-            const combinedResults = [
-                ...movieData.results.map(movie => ({
-                    ...movie,
-                    type: "movie"
-                })),
-
-                ...seriesData.results.map(series => ({
-                    ...series,
-                    type: "series"
-                }))
-            ];
-            console.log("Search Response", combinedResults);
-
-            if (combinedResults.length === 0) {
-                setNoResults(true);
-                setSectionTitle("You may Like");
-                const trendingResponse = await fetch("http://localhost:8080/api/movies/trending");
-                const trendingData = await trendingResponse.json();
-                setMovies(trendingData.results);
-                return;
-            }
-            setSectionTitle("Search Results");
-            setSearchResults(combinedResults);
-        } catch (error) {
-            console.log(error);
-            setError("Unable to search results ");
-        } finally {
-            setLoading(false);
-        }
-    };
     useEffect(() => {
 
-        const loadTrending = async () => {
-
+        const loadTrendingContent = async () => {
             setLoading(true);
             setError("");
 
             try {
+                const [movieResponse, seriesResponse] = await Promise.all([
+                    fetch(`${import.meta.env.VITE_API_URL}/api/movies/trending`),
+                    fetch(`${import.meta.env.VITE_API_URL}/api/series/trending`)
+                ]);
 
-                const movieResponse = await fetch(
-                    "http://localhost:8080/api/movies/trending");
-                const seriesResponse = await fetch(
-                    "http://localhost:8080/api/series/trending");
+                // Log only after both responses have been initialized.
+                console.log("Movie response status:", movieResponse.status);
+                console.log("Series response status:", seriesResponse.status);
+
+                if (!movieResponse.ok || !seriesResponse.ok) {
+                    throw new Error(
+                        `Request failed: movies=${movieResponse.status}, series=${seriesResponse.status}`
+                    );
+                }
 
                 const movieData = await movieResponse.json();
                 const seriesData = await seriesResponse.json();
 
-                setMovies(movieData.results);
-                setSeries(seriesData.results);
+                console.log("Movie data:", movieData);
+                console.log("Series data:", seriesData);
 
-            } catch (error) {
+                setMovies(
+                    Array.isArray(movieData)
+                        ? movieData
+                        : movieData.results || []
+                );
 
-                console.log(error);
-                setError("Unable to load ");
-
+                setSeries(
+                    Array.isArray(seriesData)
+                        ? seriesData
+                        : seriesData.results || []
+                );
+            } catch (err) {
+                console.error("Failed to load trending content:", err);
+                setError(err.message || "Unable to load movies and TV shows.");
             } finally {
-
                 setLoading(false);
             }
         };
 
-        loadTrending();
 
+        loadTrendingContent();
+
+        
     }, []);
+
+    if (loading) {
+        return (
+            <main className="home-page">
+                <p className="home-status">Loading movies and TV shows...</p>
+            </main>
+        );
+    }
+
+    if (error) {
+        return (
+            <main className="home-page">
+                <p className="home-error">{error}</p>
+                <button
+                    className="home-retry-button"
+                    onClick={() => window.location.reload()}
+                >
+                    Try again
+                </button>
+            </main>
+        );
+    }
+
     return (
-        <div>
-            <header className="header">
-
-                <h1 onClick={loadTrendingContent}>
-                    <span className="film-text">Film</span>Space
-                </h1>
-
-                <SearchBar
-                    searchText={searchText}
-                    onSearchChange={setSearchText}
-                    onSearch={handleSearch}
-                />
-
-                <Link to="/game" className="game-link">
-                    Face-Off
-                </Link>
-
-            </header>
-
-            {noResults && (
-                <p className="no-results">
-                    No result found with "{searchText}"
-                </p>
-            )}
-            {loading && <p>Loading ...</p>}
-
-            {error && <p>{error}</p>}
-            {sectionTitle === "Search Results" && (
-                <div className="content-grid">
-                    {searchResults.map(item => (
-                        <ContentCard
-                            key={item.id}
-                            content={item}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {sectionTitle === "Trending" && (
+        <main className="home-page">
+            {isSearchPage ? (
                 <>
                     <h2 className="section-title">
-                        Trending Movies
+                        {hasSearchResults
+                            ? `Search results for "${searchText}"`
+                            : `No results found for "${searchText}"`}
                     </h2>
 
+                    {hasSearchResults ? (
+                        <div className="content-grid">
+                            {searchResults.map((item) => (
+                                <ContentCard
+                                    key={`${item.type}-${item.id}`}
+                                    content={item}
+                                    type={item.type}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="home-status">
+                            Try another title using the search bar above.
+                        </p>
+                    )}
+
+                    <h2 className="section-title">Trending Movies</h2>
                     <div className="content-grid">
-                        {movies.map(movie => (
+                        {movies.map((movie) => (
                             <ContentCard
-                                key={movie.id}
+                                key={`movie-${movie.id}`}
                                 content={movie}
-                                type= "movie"
-                            />
-                        ))}
-                    </div>
-
-                    <h2 className="section-title">
-                        Trending Series
-                    </h2>
-
-                    <div className="content-grid">
-                        {series.map(show => (
-                            <ContentCard
-                                key={show.id}
-                                content={show}
-                                type = "series"
+                                type="movie"
                             />
                         ))}
                     </div>
                 </>
+            ) : (
+                <>
+                    <h2 className="section-title">Trending Movies</h2>
+
+                    {movies.length > 0 ? (
+                        <div className="content-grid">
+                            {movies.map((movie) => (
+                                <ContentCard
+                                    key={`movie-${movie.id}`}
+                                    content={movie}
+                                    type="movie"
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="home-status">
+                            No trending movies are available right now.
+                        </p>
+                    )}
+
+                    <h2 className="section-title">Trending TV Shows</h2>
+
+                    {series.length > 0 ? (
+                        <div className="content-grid">
+                            {series.map((show) => (
+                                <ContentCard
+                                    key={`series-${show.id}`}
+                                    content={show}
+                                    type="series"
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="home-status">
+                            No trending TV shows are available right now.
+                        </p>
+                    )}
+                </>
             )}
-        </div>
+        </main>
     );
 }
 
-export default Home
+export default Home;
