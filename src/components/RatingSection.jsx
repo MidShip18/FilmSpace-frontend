@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "../App.css";
 
-const API = "";
+const API = import.meta.env.VITE_API_URL;;
 
 const questions = [
     {
